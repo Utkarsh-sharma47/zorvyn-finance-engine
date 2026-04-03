@@ -1,11 +1,10 @@
-from datetime import datetime, timezone
-
 from fastapi import HTTPException
 from sqlalchemy import and_, func
 from sqlmodel import Session, select
 
-from app.models.finance import Account, AuditLog, Transaction, TransactionType
+from app.models.finance import Account, Transaction, TransactionType
 from app.schemas.finance import TransactionCreate, TransferCreate
+from app.services.audit import AuditService
 
 
 class TransactionService:
@@ -38,6 +37,24 @@ class TransactionService:
                 is_deleted=False,
             )
             session.add(tx)
+            session.flush()
+            if tx.id is None:
+                raise HTTPException(status_code=500, detail="Failed to persist transaction for audit")
+            AuditService.log_action(
+                session,
+                user_id=user_id,
+                action="INSERT",
+                table_name="transactions",
+                record_id=tx.id,
+                changes={
+                    "account_id": payload.account_id,
+                    "amount": str(payload.amount),
+                    "transaction_type": payload.transaction_type.value,
+                    "category": payload.category,
+                    "description": payload.description,
+                    "user_id": user_id,
+                },
+            )
             session.commit()
             session.refresh(tx)
             session.refresh(account)
@@ -151,15 +168,14 @@ class TransactionService:
             tx.deleted_by = deleted_by_user_id
             session.add(tx)
 
-            audit = AuditLog(
+            AuditService.log_action(
+                session,
                 user_id=deleted_by_user_id,
                 action="DELETE",
                 table_name="transactions",
-                record_id=str(transaction_id),
+                record_id=transaction_id,
                 changes={"is_deleted": True, "deleted_by": deleted_by_user_id},
-                timestamp=datetime.now(timezone.utc),
             )
-            session.add(audit)
             session.commit()
         except HTTPException:
             session.rollback()
