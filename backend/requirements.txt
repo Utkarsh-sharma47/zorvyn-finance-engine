@@ -4,7 +4,9 @@ python-multipart
 uvicorn[standard]
 sqlmodel
 psycopg2-binary
-redis
+fastapi-cache2[redis]>=0.2.2
+jinja2
+redis>=4.2,<5
 structlog
 python-dotenv
 alembic

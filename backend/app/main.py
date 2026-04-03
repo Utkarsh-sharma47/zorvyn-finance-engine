@@ -1,12 +1,33 @@
 import uuid
+from contextlib import asynccontextmanager
 from typing import Any
 
+import redis.asyncio as redis
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi_cache import FastAPICache
+from fastapi_cache.backends.inmemory import InMemoryBackend
+from fastapi_cache.backends.redis import RedisBackend
 
 from app.api.v1.api import api_router
+from app.core.config import settings
 from app.schemas.finance import ResponseModel
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    redis_client: redis.Redis | None = None
+    try:
+        redis_client = redis.from_url(settings.redis_url)
+        await redis_client.ping()
+        FastAPICache.init(RedisBackend(redis_client), prefix="fastapi-cache")
+    except Exception:
+        FastAPICache.init(InMemoryBackend(), prefix="fastapi-cache")
+    yield
+    if redis_client is not None:
+        await redis_client.close()
+    FastAPICache.reset()
 
 
 def _error_envelope(request: Request, message: str, status_code: int) -> JSONResponse:
@@ -22,7 +43,11 @@ def _error_envelope(request: Request, message: str, status_code: int) -> JSONRes
     )
 
 
-app = FastAPI(title="Zorvyn Finance Engine API", version="0.1.0")
+app = FastAPI(
+    title="Zorvyn Finance Engine API",
+    version="0.1.0",
+    lifespan=lifespan,
+)
 
 # Mount versioned API first so all /api/v1/* routes are registered on this app instance.
 app.include_router(api_router, prefix="/api/v1")
