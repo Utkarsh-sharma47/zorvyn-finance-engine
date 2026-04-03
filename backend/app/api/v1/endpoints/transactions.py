@@ -1,9 +1,11 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, Callable, Optional
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import JSONResponse
+from fastapi_cache.decorator import cache
 from sqlmodel import Session
+from starlette.responses import Response
 
 from app.api.deps import RequireAccess
 from app.db.session import get_session
@@ -22,6 +24,32 @@ from app.services.finance import TransactionService
 
 
 router = APIRouter()
+
+
+def financial_summary_key_builder(
+    func: Callable[..., Any],
+    namespace: str = "",
+    *,
+    request: Optional[Request] = None,
+    response: Optional[Response] = None,
+    args: tuple[Any, ...] = (),
+    kwargs: Optional[dict[str, Any]] = None,
+) -> str:
+    kwargs = kwargs or {}
+    user = kwargs.get("_authorized")
+    uid = getattr(user, "id", None) if user is not None else "anon"
+    dept = getattr(user, "department", None)
+    role = getattr(user, "role", None)
+    dept_s = dept.value if dept is not None else ""
+    role_s = role.value if role is not None else ""
+    start_date = kwargs.get("start_date")
+    end_date = kwargs.get("end_date")
+    start_s = start_date.isoformat() if start_date else ""
+    end_s = end_date.isoformat() if end_date else ""
+    return (
+        f"{namespace}:{func.__module__}:{func.__name__}:"
+        f"uid:{uid}:dept:{dept_s}:role:{role_s}:start:{start_s}:end:{end_s}"
+    )
 
 
 def _json_envelope(
@@ -76,7 +104,8 @@ def transfer_funds(
 
 
 @router.get("/summary")
-def financial_summary(
+@cache(expire=300, key_builder=financial_summary_key_builder)
+async def financial_summary(
     request: Request,
     session: Session = Depends(get_session),
     _authorized: User = Depends(
