@@ -1,0 +1,17 @@
+fastapi
+email-validator
+python-multipart
+uvicorn[standard]
+sqlmodel
+psycopg2-binary
+redis
+structlog
+python-dotenv
+alembic
+pydantic-settings
+passlib[bcrypt]
+bcrypt==4.0.1 # pin: passlib + bcrypt 4.1+ incompatibility on some Python versions
+python-jose[cryptography]
+pytest
+pytest-cov
+httpx
