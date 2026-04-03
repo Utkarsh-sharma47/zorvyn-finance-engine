@@ -13,6 +13,8 @@ from app.schemas.finance import (
     TransactionCreate,
     TransactionListData,
     TransactionRead,
+    TransferCreate,
+    TransferResult,
 )
 from app.services.finance import TransactionService
 
@@ -50,6 +52,25 @@ def create_transaction(
     tx = TransactionService.create_transaction(session, payload, user_id=user.id or 0)
     read = TransactionRead.model_validate(tx)
     return _json_envelope(request, success=True, data=read)
+
+
+@router.post("/transfer")
+def transfer_funds(
+    request: Request,
+    payload: TransferCreate,
+    session: Session = Depends(get_session),
+    user: User = Depends(RequireAccess(Department.FINANCE, [Role.ADMIN])),
+):
+    expense_tx, income_tx = TransactionService.transfer_funds(
+        session,
+        payload,
+        user_id=user.id or 0,
+    )
+    data = TransferResult(
+        expense_transaction=TransactionRead.model_validate(expense_tx),
+        income_transaction=TransactionRead.model_validate(income_tx),
+    )
+    return _json_envelope(request, success=True, data=data.model_dump(mode="json"))
 
 
 @router.get("/")
