@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 
-from app.api.deps import get_mock_user
+from app.api.deps import get_current_user
 from app.main import app
 from app.models.user import Department, Role, User
 
@@ -17,12 +17,12 @@ def test_health_returns_envelope_200(client):
     assert body["data"] == {"status": "healthy"}
 
 
-def test_require_access_mock_user_override_placeholder():
+def test_require_access_override_placeholder():
     """
-    Placeholder: when routes use ``Depends(RequireAccess(...))``, they still depend on
-    ``get_mock_user`` (until real JWT auth). Override that dependency to simulate a
-    token-identified user (e.g. a Finance Viewer).
+    Example: override ``get_current_user`` (JWT dependency) with a fake user for tests
+    that hit protected routes without a real token.
     """
+
     def viewer_from_token() -> User:
         return User(
             id=99,
@@ -34,10 +34,10 @@ def test_require_access_mock_user_override_placeholder():
             created_at=datetime.now(timezone.utc),
         )
 
-    app.dependency_overrides[get_mock_user] = viewer_from_token
+    app.dependency_overrides[get_current_user] = viewer_from_token
     try:
         user = viewer_from_token()
         assert user.role is Role.VIEWER
         assert user.department is Department.FINANCE
     finally:
-        app.dependency_overrides.pop(get_mock_user, None)
+        app.dependency_overrides.pop(get_current_user, None)

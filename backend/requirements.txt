@@ -1,4 +1,6 @@
 fastapi
+email-validator
+python-multipart
 uvicorn[standard]
 sqlmodel
 psycopg2-binary
