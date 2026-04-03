@@ -80,3 +80,9 @@ class TransferResult(BaseModel):
 
     expense_transaction: TransactionRead
     income_transaction: TransactionRead
+
+
+class FinancialSummary(BaseModel):
+    total_income: Decimal
+    total_expense: Decimal
+    net_revenue: Decimal

@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query, Request
@@ -9,6 +10,7 @@ from app.db.session import get_session
 from app.models.finance import TransactionType
 from app.models.user import Department, Role, User
 from app.schemas.finance import (
+    FinancialSummary,
     ResponseModel,
     TransactionCreate,
     TransactionListData,
@@ -71,6 +73,24 @@ def transfer_funds(
         income_transaction=TransactionRead.model_validate(income_tx),
     )
     return _json_envelope(request, success=True, data=data.model_dump(mode="json"))
+
+
+@router.get("/summary")
+def financial_summary(
+    request: Request,
+    session: Session = Depends(get_session),
+    _authorized: User = Depends(
+        RequireAccess(Department.FINANCE, [Role.ADMIN, Role.ANALYST, Role.VIEWER]),
+    ),
+    start_date: datetime | None = Query(None, description="Inclusive lower bound on created_at (UTC)"),
+    end_date: datetime | None = Query(None, description="Inclusive upper bound on created_at (UTC)"),
+):
+    summary: FinancialSummary = TransactionService.get_financial_summary(
+        session,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    return _json_envelope(request, success=True, data=summary.model_dump(mode="json"))
 
 
 @router.get("/")

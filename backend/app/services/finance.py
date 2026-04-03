@@ -1,11 +1,12 @@
 from datetime import datetime, timezone
+from decimal import Decimal
 
 from fastapi import HTTPException
 from sqlalchemy import and_, func
 from sqlmodel import Session, select
 
 from app.models.finance import Account, AuditLog, Transaction, TransactionType
-from app.schemas.finance import TransactionCreate, TransferCreate
+from app.schemas.finance import FinancialSummary, TransactionCreate, TransferCreate
 
 
 class TransactionService:
@@ -137,6 +138,40 @@ class TransactionService:
         )
         rows = session.exec(list_stmt).all()
         return list(rows), int(total)
+
+    @staticmethod
+    def get_financial_summary(
+        session: Session,
+        *,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+    ) -> FinancialSummary:
+        conditions: list = [Transaction.is_deleted == False]  # noqa: E712
+        if start_date is not None:
+            conditions.append(Transaction.created_at >= start_date)
+        if end_date is not None:
+            conditions.append(Transaction.created_at <= end_date)
+        base_where = and_(*conditions)
+
+        sum_income_stmt = select(func.coalesce(func.sum(Transaction.amount), 0)).where(
+            and_(base_where, Transaction.transaction_type == TransactionType.INCOME),
+        )
+        sum_expense_stmt = select(func.coalesce(func.sum(Transaction.amount), 0)).where(
+            and_(base_where, Transaction.transaction_type == TransactionType.EXPENSE),
+        )
+
+        raw_income = session.exec(sum_income_stmt).one()
+        raw_expense = session.exec(sum_expense_stmt).one()
+
+        total_income = Decimal(str(raw_income)) if raw_income is not None else Decimal("0")
+        total_expense = Decimal(str(raw_expense)) if raw_expense is not None else Decimal("0")
+        net_revenue = total_income - total_expense
+
+        return FinancialSummary(
+            total_income=total_income,
+            total_expense=total_expense,
+            net_revenue=net_revenue,
+        )
 
     @staticmethod
     def soft_delete_transaction(session: Session, transaction_id: int, deleted_by_user_id: int) -> None:
