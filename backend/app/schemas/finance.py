@@ -61,3 +61,22 @@ class TransactionRead(BaseModel):
 class TransactionListData(BaseModel):
     items: list[TransactionRead]
     total: int
+
+
+class TransferCreate(BaseModel):
+    from_account_id: int = Field(..., gt=0)
+    to_account_id: int = Field(..., gt=0)
+    amount: Decimal = Field(
+        ...,
+        gt=0,
+        max_digits=19,
+        decimal_places=4,
+    )
+    description: str = Field(..., min_length=1, max_length=2000)
+
+
+class TransferResult(BaseModel):
+    """Both ledger rows from a single fund transfer (expense on sender, income on receiver)."""
+
+    expense_transaction: TransactionRead
+    income_transaction: TransactionRead

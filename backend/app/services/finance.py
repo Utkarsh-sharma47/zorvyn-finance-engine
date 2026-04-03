@@ -5,7 +5,7 @@ from sqlalchemy import and_, func
 from sqlmodel import Session, select
 
 from app.models.finance import Account, AuditLog, Transaction, TransactionType
-from app.schemas.finance import TransactionCreate
+from app.schemas.finance import TransactionCreate, TransferCreate
 
 
 class TransactionService:
@@ -42,6 +42,68 @@ class TransactionService:
             session.refresh(tx)
             session.refresh(account)
             return tx
+        except HTTPException:
+            session.rollback()
+            raise
+        except Exception:
+            session.rollback()
+            raise
+
+    @staticmethod
+    def transfer_funds(
+        session: Session,
+        payload: TransferCreate,
+        user_id: int,
+    ) -> tuple[Transaction, Transaction]:
+        """
+        Move funds between accounts in one ACID unit of work: balance updates + two ledger rows,
+        single commit. Any failure rolls back the whole operation.
+        """
+        try:
+            if payload.from_account_id == payload.to_account_id:
+                raise HTTPException(status_code=400, detail="Cannot transfer to the same account")
+
+            from_account = session.get(Account, payload.from_account_id)
+            to_account = session.get(Account, payload.to_account_id)
+            if from_account is None or to_account is None:
+                raise HTTPException(status_code=404, detail="Account not found")
+
+            if from_account.balance < payload.amount:
+                raise HTTPException(status_code=400, detail="Insufficient funds")
+
+            from_account.balance = from_account.balance - payload.amount
+            from_account.version = from_account.version + 1
+            to_account.balance = to_account.balance + payload.amount
+            to_account.version = to_account.version + 1
+
+            category = "transfer"
+            tx_expense = Transaction(
+                account_id=payload.from_account_id,
+                user_id=user_id,
+                amount=payload.amount,
+                transaction_type=TransactionType.EXPENSE,
+                category=category,
+                description=payload.description,
+                is_deleted=False,
+            )
+            tx_income = Transaction(
+                account_id=payload.to_account_id,
+                user_id=user_id,
+                amount=payload.amount,
+                transaction_type=TransactionType.INCOME,
+                category=category,
+                description=payload.description,
+                is_deleted=False,
+            )
+            session.add(tx_expense)
+            session.add(tx_income)
+
+            session.commit()
+            session.refresh(tx_expense)
+            session.refresh(tx_income)
+            session.refresh(from_account)
+            session.refresh(to_account)
+            return tx_expense, tx_income
         except HTTPException:
             session.rollback()
             raise
