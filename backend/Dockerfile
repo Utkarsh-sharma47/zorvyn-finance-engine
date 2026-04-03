@@ -26,11 +26,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY --from=builder /opt/venv /opt/venv
 
-ENV PATH="/opt/venv/bin:$PATH" \
+ENV PATH="/usr/local/bin:/opt/venv/bin:$PATH" \
     PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app
 
 COPY . .
+
+# Alembic CLI must always load /app/alembic.ini (script_location); wrap the venv entrypoint.
+RUN mv /opt/venv/bin/alembic /opt/venv/bin/_alembic \
+    && install -m 0755 docker/alembic.sh /usr/local/bin/alembic \
+    && sed -i 's/\r$//' /usr/local/bin/alembic
+
+# Fail the image build if Alembic config is missing from the build context
+RUN test -f /app/alembic.ini && test -d /app/alembic
 
 EXPOSE 8000
 
