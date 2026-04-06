@@ -86,3 +86,17 @@ class FinancialSummary(BaseModel):
     total_income: Decimal
     total_expense: Decimal
     net_revenue: Decimal
+
+
+class AccountRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    user_id: int | None = None
+    name: str
+    balance: Decimal
+
+
+class AccountListData(BaseModel):
+    items: list[AccountRead]
+    total: int

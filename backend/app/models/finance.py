@@ -16,6 +16,7 @@ class Account(SQLModel, table=True):
     __tablename__ = "accounts"
 
     id: int | None = Field(default=None, primary_key=True)
+    user_id: int | None = Field(default=None, foreign_key="users.id", index=True)
     name: str = Field(index=True, max_length=255)
     balance: Decimal = Field(
         default=Decimal("0"),

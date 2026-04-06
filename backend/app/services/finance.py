@@ -1,15 +1,29 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 from fastapi import HTTPException
 from sqlalchemy import and_, func
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, select
-
-from app.models.finance import Account, AuditLog, Transaction, TransactionType
+from app.services.audit import AuditService
+from app.models.finance import Account, Transaction, TransactionType
 from app.schemas.finance import FinancialSummary, TransactionCreate, TransferCreate
 
 
+
 class TransactionService:
+    @staticmethod
+    def _assert_account_owned(session: Session, account_id: int, user_id: int) -> Account:
+        """Ensure account exists and belongs to user_id (single round-trip)."""
+        stmt = select(Account).where(Account.id == account_id, Account.user_id == user_id)
+        account = session.exec(stmt).first()
+        if account is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Account not found or access denied",
+            )
+        return account
+
     @staticmethod
     def create_transaction(
         session: Session,
@@ -17,9 +31,7 @@ class TransactionService:
         user_id: int,
     ) -> Transaction:
         try:
-            account = session.get(Account, payload.account_id)
-            if account is None:
-                raise HTTPException(status_code=404, detail="Account not found")
+            account = TransactionService._assert_account_owned(session, payload.account_id, user_id)
 
             delta = payload.amount
             if payload.transaction_type == TransactionType.EXPENSE:
@@ -41,7 +53,7 @@ class TransactionService:
             session.add(tx)
             session.flush()
             if tx.id is None:
-                raise HTTPException(status_code=500, detail="Failed to persist transaction for audit")
+                raise HTTPException(status_code=400, detail="Failed to persist transaction for audit")
             AuditService.log_action(
                 session,
                 user_id=user_id,
@@ -66,7 +78,7 @@ class TransactionService:
             raise
         except Exception:
             session.rollback()
-            raise
+            raise HTTPException(status_code=400, detail="Unable to complete the transaction")
 
     @staticmethod
     def transfer_funds(
@@ -82,10 +94,8 @@ class TransactionService:
             if payload.from_account_id == payload.to_account_id:
                 raise HTTPException(status_code=400, detail="Cannot transfer to the same account")
 
-            from_account = session.get(Account, payload.from_account_id)
-            to_account = session.get(Account, payload.to_account_id)
-            if from_account is None or to_account is None:
-                raise HTTPException(status_code=404, detail="Account not found")
+            from_account = TransactionService._assert_account_owned(session, payload.from_account_id, user_id)
+            to_account = TransactionService._assert_account_owned(session, payload.to_account_id, user_id)
 
             if from_account.balance < payload.amount:
                 raise HTTPException(status_code=400, detail="Insufficient funds")
@@ -128,7 +138,7 @@ class TransactionService:
             raise
         except Exception:
             session.rollback()
-            raise
+            raise HTTPException(status_code=400, detail="Unable to complete the transfer")
 
     @staticmethod
     def get_transactions(
@@ -192,30 +202,77 @@ class TransactionService:
         )
 
     @staticmethod
+    def _find_transfer_counterpart(session: Session, tx: Transaction) -> Transaction | None:
+        """
+        Transfer pairs are two rows (expense + income) with no FK. When deleting one leg,
+        match the twin: category 'transfer', same user, same amount magnitude, created_at
+        within 1 second of this row.
+        """
+        if (tx.category or "").strip().lower() != "transfer":
+            return None
+        window_start = tx.created_at - timedelta(seconds=1)
+        window_end = tx.created_at + timedelta(seconds=1)
+        abs_amount = abs(tx.amount)
+        stmt = (
+            select(Transaction)
+            .where(
+                Transaction.id != tx.id,
+                Transaction.user_id == tx.user_id,
+                Transaction.category == tx.category,
+                Transaction.is_deleted == False,  # noqa: E712
+                Transaction.created_at >= window_start,
+                Transaction.created_at <= window_end,
+                func.abs(Transaction.amount) == abs_amount,
+            )
+            .order_by(Transaction.id.asc())
+            .limit(1)
+        )
+        return session.exec(stmt).first()
+
+    @staticmethod
     def soft_delete_transaction(session: Session, transaction_id: int, deleted_by_user_id: int) -> None:
         try:
             tx = session.get(Transaction, transaction_id)
             if tx is None:
                 raise HTTPException(status_code=404, detail="Transaction not found")
+            if tx.user_id != deleted_by_user_id:
+                raise HTTPException(status_code=403, detail="Not allowed to delete this transaction")
             if tx.is_deleted:
                 raise HTTPException(status_code=400, detail="Transaction already deleted")
 
-            tx.is_deleted = True
-            tx.deleted_by = deleted_by_user_id
-            session.add(tx)
+            to_soft_delete: list[Transaction] = [tx]
+            counterpart = TransactionService._find_transfer_counterpart(session, tx)
+            if counterpart is not None:
+                to_soft_delete.append(counterpart)
 
-            AuditService.log_action(
-                session,
-                user_id=deleted_by_user_id,
-                action="DELETE",
-                table_name="transactions",
-                record_id=transaction_id,
-                changes={"is_deleted": True, "deleted_by": deleted_by_user_id},
-            )
+            for row in to_soft_delete:
+                row.is_deleted = True
+                row.deleted_by = deleted_by_user_id
+                session.add(row)
+
+            session.flush()
+            for row in to_soft_delete:
+                if row.id is None:
+                    raise HTTPException(status_code=400, detail="Failed to persist transaction delete for audit")
+                AuditService.log_action(
+                    session,
+                    user_id=deleted_by_user_id,
+                    action="DELETE",
+                    table_name="transactions",
+                    record_id=row.id,
+                    changes={
+                        "is_deleted": True,
+                        "deleted_by": deleted_by_user_id,
+                        "paired_transfer_delete": len(to_soft_delete) > 1,
+                    },
+                )
             session.commit()
         except HTTPException:
             session.rollback()
             raise
+        except SQLAlchemyError as exc:
+            session.rollback()
+            raise HTTPException(status_code=400, detail="Unable to delete the transaction") from exc
         except Exception:
             session.rollback()
-            raise
+            raise HTTPException(status_code=400, detail="Unable to delete the transaction")

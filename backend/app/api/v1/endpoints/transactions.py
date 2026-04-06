@@ -155,5 +155,9 @@ def delete_transaction(
     session: Session = Depends(get_session),
     user: User = Depends(RequireAccess(Department.FINANCE, [Role.ADMIN])),
 ):
+    """
+    Soft-delete a ledger row owned by the current user. Transfer pairs (category `transfer`
+    with matching twin within 1s) are soft-deleted together in the service layer.
+    """
     TransactionService.soft_delete_transaction(session, transaction_id, deleted_by_user_id=user.id or 0)
     return _json_envelope(request, success=True, data=None)

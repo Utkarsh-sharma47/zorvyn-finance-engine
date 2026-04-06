@@ -55,9 +55,9 @@ def client(test_db: Session) -> TestClient:
 
 
 @pytest.fixture
-def normal_user_token_headers(client: TestClient) -> dict[str, str]:
+def finance_admin(client: TestClient) -> dict:
     """
-    Register a Finance/Admin user, log in via OAuth2 password flow, return Bearer headers.
+    Register a Finance/Admin user, log in, return Bearer headers and user id.
     Admin is required for POST /transactions/ and /transactions/transfer.
     """
     email = f"pytest_{uuid.uuid4().hex}@example.com"
@@ -75,6 +75,7 @@ def normal_user_token_headers(client: TestClient) -> dict[str, str]:
     assert reg.status_code == 200
     reg_body = reg.json()
     assert reg_body["success"] is True
+    user_id = reg_body["data"]["id"]
 
     login = client.post(
         "/api/v1/auth/login",
@@ -82,4 +83,13 @@ def normal_user_token_headers(client: TestClient) -> dict[str, str]:
     )
     assert login.status_code == 200
     token = login.json()["access_token"]
-    return {"Authorization": f"Bearer {token}"}
+    return {
+        "headers": {"Authorization": f"Bearer {token}"},
+        "user_id": user_id,
+    }
+
+
+@pytest.fixture
+def normal_user_token_headers(finance_admin: dict) -> dict[str, str]:
+    """Backward-compatible alias: Bearer headers only."""
+    return finance_admin["headers"]
