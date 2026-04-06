@@ -63,20 +63,44 @@ export function AuthProvider({ children }) {
     async (email, password) => {
       setError(null);
       try {
-        // OAuth2PasswordRequestForm: form fields must be `username` (email) and `password`.
-        const formData = new URLSearchParams();
-        formData.append('username', email.trim());
-        formData.append('password', password);
-        const body = formData.toString();
+        // Do not send a stale Bearer token on the token endpoint (avoids interceptor side effects).
+        localStorage.removeItem('token');
+        setToken(null);
 
-        const response = await api.post('/auth/login', body, {
+        // OAuth2PasswordRequestForm: application/x-www-form-urlencoded with username + password.
+        const form = new URLSearchParams();
+        form.set('username', email.trim());
+        form.set('password', password);
+
+        // Same-origin path so Vite dev proxy and production reverse proxies forward /api to the backend.
+        const res = await fetch('/api/v1/auth/login', {
+          method: 'POST',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
+            Accept: 'application/json',
           },
+          body: form.toString(),
         });
 
-        // FastAPI returns the OAuth2 token payload directly (no success/data envelope).
-        const accessToken = response.data?.access_token;
+        let payload = {};
+        try {
+          payload = await res.json();
+        } catch {
+          payload = {};
+        }
+
+        if (!res.ok) {
+          const detail =
+            typeof payload.detail === 'string'
+              ? payload.detail
+              : typeof payload.message === 'string'
+                ? payload.message
+                : `Login failed (${res.status})`;
+          throw new Error(detail);
+        }
+
+        // FastAPI: { "access_token": "...", "token_type": "bearer" } — no nested envelope.
+        const accessToken = payload.access_token;
         if (typeof accessToken !== 'string' || accessToken.length === 0) {
           throw new Error('No access token in response');
         }
