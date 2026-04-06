@@ -31,6 +31,7 @@ ENV PATH="/usr/local/bin:/opt/venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app
 
+# Application source, including alembic.ini and alembic/ (required for upgrade at runtime).
 COPY . .
 
 # Alembic CLI must always load /app/alembic.ini (script_location); wrap the venv entrypoint.
@@ -43,4 +44,5 @@ RUN test -f /app/alembic.ini && test -d /app/alembic
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run migrations before the ASGI server (e.g. Render). PORT is honored when set by the platform.
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
