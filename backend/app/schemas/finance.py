@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any, Generic, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.models.finance import TransactionType
 
@@ -88,12 +88,40 @@ class FinancialSummary(BaseModel):
     net_revenue: Decimal
 
 
+class AccountCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    currency: str = Field(default="USD", min_length=3, max_length=3)
+    initial_balance: Decimal = Field(
+        default=Decimal("0"),
+        ge=Decimal("0"),
+        max_digits=19,
+        decimal_places=4,
+    )
+
+    @field_validator("name")
+    @classmethod
+    def strip_name(cls, v: str) -> str:
+        s = v.strip()
+        if not s:
+            raise ValueError("name must not be empty")
+        return s
+
+    @field_validator("currency")
+    @classmethod
+    def normalize_currency(cls, v: str) -> str:
+        c = v.strip().upper()
+        if len(c) != 3:
+            raise ValueError("currency must be a 3-letter ISO 4217 code")
+        return c
+
+
 class AccountRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
     user_id: int | None = None
     name: str
+    currency: str
     balance: Decimal
 
 

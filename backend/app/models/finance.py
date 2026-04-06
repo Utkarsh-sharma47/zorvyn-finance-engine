@@ -18,6 +18,7 @@ class Account(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     user_id: int | None = Field(default=None, foreign_key="users.id", index=True)
     name: str = Field(index=True, max_length=255)
+    currency: str = Field(default="USD", max_length=3)
     balance: Decimal = Field(
         default=Decimal("0"),
         sa_column=Column(Numeric(19, 4), nullable=False),

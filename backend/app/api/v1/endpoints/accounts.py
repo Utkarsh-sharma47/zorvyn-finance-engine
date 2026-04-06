@@ -8,7 +8,7 @@ from app.api.deps import RequireAccess
 from app.db.session import get_session
 from app.models.finance import Account
 from app.models.user import Department, Role, User
-from app.schemas.finance import AccountListData, AccountRead, ResponseModel
+from app.schemas.finance import AccountCreate, AccountListData, AccountRead, ResponseModel
 
 router = APIRouter()
 
@@ -31,6 +31,28 @@ def _json_envelope(
         status_code=status_code,
         content=body.model_dump(mode="json"),
     )
+
+
+@router.post("/")
+def create_account(
+    request: Request,
+    payload: AccountCreate,
+    session: Session = Depends(get_session),
+    user: User = Depends(RequireAccess(Department.FINANCE, [Role.ADMIN])),
+):
+    uid = user.id if user.id is not None else 0
+    account = Account(
+        user_id=uid,
+        name=payload.name,
+        currency=payload.currency,
+        balance=payload.initial_balance,
+        version=1,
+    )
+    session.add(account)
+    session.commit()
+    session.refresh(account)
+    read = AccountRead.model_validate(account)
+    return _json_envelope(request, success=True, data=read.model_dump(mode="json"))
 
 
 @router.get("/")
