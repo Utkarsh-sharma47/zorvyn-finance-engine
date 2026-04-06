@@ -1,3 +1,4 @@
+import logging
 import uuid
 from contextlib import asynccontextmanager
 from typing import Any
@@ -5,6 +6,7 @@ from typing import Any
 import redis.asyncio as redis
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi_cache import FastAPICache
 from fastapi_cache.backends.inmemory import InMemoryBackend
@@ -13,6 +15,13 @@ from fastapi_cache.backends.redis import RedisBackend
 from app.api.v1.api import api_router
 from app.core.config import settings
 from app.schemas.finance import ResponseModel
+
+logger = logging.getLogger("nexus_finance")
+
+# Allow origins list: comma-separated; never use '*' with credentials in production.
+_cors_origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
+if not _cors_origins:
+    _cors_origins = ["http://localhost:5173"]
 
 
 @asynccontextmanager
@@ -44,9 +53,17 @@ def _error_envelope(request: Request, message: str, status_code: int) -> JSONRes
 
 
 app = FastAPI(
-    title="Zorvyn Finance Engine API",
+    title="Nexus Finance Engine API",
     version="0.1.0",
     lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
 )
 
 # Mount versioned API first so all /api/v1/* routes are registered on this app instance.
@@ -86,7 +103,8 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    return _error_envelope(request, "An unexpected error occurred", 500)
+    logger.exception("Unhandled exception")
+    return _error_envelope(request, "The request could not be completed", 400)
 
 
 @app.get("/health")

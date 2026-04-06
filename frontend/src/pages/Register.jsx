@@ -65,7 +65,7 @@ export default function Register() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-[#0a0a0a] px-4 pb-16 pt-8">
       <div className="mb-8 text-center">
         <h1 className="text-3xl font-bold tracking-tight text-gray-50 md:text-4xl">Create account</h1>
-        <p className="mt-2 text-sm text-gray-400">Join your team on Zorvyn Finance</p>
+        <p className="mt-2 text-sm text-gray-400">Request access through your organization administrator</p>
       </div>
 
       <GlassCard strong className="w-full max-w-md p-8">

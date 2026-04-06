@@ -109,7 +109,7 @@ async def financial_summary(
     request: Request,
     session: Session = Depends(get_session),
     _authorized: User = Depends(
-        RequireAccess(Department.FINANCE, [Role.ADMIN, Role.ANALYST, Role.VIEWER]),
+        RequireAccess(Department.FINANCE, [Role.ADMIN, Role.ANALYST, Role.VIEWER, Role.DEV_ADMIN]),
     ),
     start_date: datetime | None = Query(None, description="Inclusive lower bound on created_at (UTC)"),
     end_date: datetime | None = Query(None, description="Inclusive upper bound on created_at (UTC)"),
@@ -127,7 +127,7 @@ def list_transactions(
     request: Request,
     session: Session = Depends(get_session),
     _authorized: User = Depends(
-        RequireAccess(Department.FINANCE, [Role.ADMIN, Role.ANALYST, Role.VIEWER]),
+        RequireAccess(Department.FINANCE, [Role.ADMIN, Role.ANALYST, Role.VIEWER, Role.DEV_ADMIN]),
     ),
     offset: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=200),

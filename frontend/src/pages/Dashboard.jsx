@@ -246,8 +246,8 @@ export default function Dashboard() {
             <Skeleton className="h-64 w-full rounded-lg" />
           ) : lineEmpty ? (
             <div className="flex h-64 flex-col items-center justify-center rounded-lg border border-dashed border-gray-800 bg-[#0a0a0a] px-4 text-center">
-              <p className="text-sm text-gray-400">No income to chart yet</p>
-              <p className="mt-1 text-xs text-gray-500">Post income transactions to see a trend by day.</p>
+              <p className="text-sm text-gray-400">No data available</p>
+              <p className="mt-1 text-xs text-gray-500">No income series is present for the current ledger.</p>
             </div>
           ) : (
             <div className="h-72 w-full">
@@ -296,8 +296,8 @@ export default function Dashboard() {
             <Skeleton className="h-64 w-full rounded-lg" />
           ) : pieEmpty ? (
             <div className="flex h-64 flex-col items-center justify-center rounded-lg border border-dashed border-gray-800 bg-[#0a0a0a] px-4 text-center">
-              <p className="text-sm text-gray-400">No expenses to chart yet</p>
-              <p className="mt-1 text-xs text-gray-500">Post expense transactions with categories to populate the donut.</p>
+              <p className="text-sm text-gray-400">No data available</p>
+              <p className="mt-1 text-xs text-gray-500">No categorized expense distribution is available.</p>
             </div>
           ) : (
             <div className="h-72 w-full">

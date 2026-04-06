@@ -1,8 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" aria-hidden="true">
   <rect width="32" height="32" rx="6" fill="#0a0a0a" />
-  <!-- Minimal Z: top bar, diagonal, bottom bar -->
   <path
-    d="M9 10h14M23 10L9 22M9 22h14"
+    d="M9 9v14M9 9l14 14M23 9v14"
     fill="none"
     stroke="#fafafa"
     stroke-width="2.25"

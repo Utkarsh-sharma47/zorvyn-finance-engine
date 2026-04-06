@@ -36,7 +36,7 @@ export default function Audit() {
 
       <div className="overflow-hidden rounded-xl border border-gray-800 bg-[#111111]">
         <div className="border-b border-gray-800 bg-gray-950 px-4 py-2 font-mono text-[10px] uppercase tracking-widest text-gray-500">
-          zorvyn-audit :: readonly
+          nexus-audit :: readonly
         </div>
         {loading ? (
           <div className="flex justify-center py-20">

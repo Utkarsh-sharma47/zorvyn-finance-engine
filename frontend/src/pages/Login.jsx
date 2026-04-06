@@ -46,8 +46,8 @@ export default function Login() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-[#0a0a0a] px-4 pb-16 pt-8">
       <div className="mb-10 text-center">
-        <h1 className="text-3xl font-bold tracking-tight text-gray-50 md:text-4xl">Zorvyn Finance</h1>
-        <p className="mt-2 text-sm text-gray-400">Enterprise-grade financial intelligence</p>
+        <h1 className="text-3xl font-bold tracking-tight text-gray-50 md:text-4xl">Nexus Finance Engine</h1>
+        <p className="mt-2 text-sm text-gray-400">Institutional ledger and analytics</p>
       </div>
 
       <GlassCard strong className="w-full max-w-md p-8">

@@ -38,7 +38,7 @@ def list_accounts(
     request: Request,
     session: Session = Depends(get_session),
     _authorized: User = Depends(
-        RequireAccess(Department.FINANCE, [Role.ADMIN, Role.ANALYST, Role.VIEWER]),
+        RequireAccess(Department.FINANCE, [Role.ADMIN, Role.ANALYST, Role.VIEWER, Role.DEV_ADMIN]),
     ),
 ):
     stmt = select(Account).order_by(Account.id)

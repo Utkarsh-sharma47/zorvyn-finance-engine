@@ -3,9 +3,11 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, select
 
 from app.api.deps import get_current_user
+from app.core.config import settings
 from app.core.security import create_access_token, get_password_hash, verify_password
 from app.db.session import get_session
 from app.models.user import User
@@ -59,7 +61,12 @@ async def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
     if user.id is None:
-        raise HTTPException(status_code=500, detail="Invalid user state")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid user account")
+    if not settings.secret_key.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Authentication service is not configured",
+        )
     access_token = create_access_token(user_id=user.id)
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -87,8 +94,17 @@ def register(
         is_active=True,
     )
     session.add(user)
-    session.commit()
-    session.refresh(user)
+    try:
+        session.commit()
+        session.refresh(user)
+    except SQLAlchemyError:
+        session.rollback()
+        return _register_envelope(
+            request,
+            success=False,
+            error="Registration could not be completed",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
     public = UserPublic.model_validate(user)
     return _register_envelope(request, success=True, data=public.model_dump(mode="json"))
 

@@ -6,7 +6,7 @@ function FullScreenLoader() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#0a0a0a]">
       <Loader2 className="h-12 w-12 animate-spin text-gray-500" aria-hidden />
-      <p className="text-sm text-gray-400">Securing your session…</p>
+      <p className="text-sm text-gray-400">Authenticating session</p>
       <span className="sr-only">Loading</span>
     </div>
   );

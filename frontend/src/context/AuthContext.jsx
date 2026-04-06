@@ -141,6 +141,7 @@ export function AuthProvider({ children }) {
     [user],
   );
 
+  /** Inter-account transfers and ledger deletes: Finance Admin only (API enforces the same). */
   const canTransfer = useMemo(() => user?.role === 'Admin', [user]);
 
   const value = useMemo(

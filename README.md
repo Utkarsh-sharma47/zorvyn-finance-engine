@@ -1,63 +1,86 @@
-# Zorvyn Finance Engine
+# Nexus Finance Engine
 
-An enterprise-grade, high-performance financial ledger and analytics platform. Built with a decoupled microservice architecture, the system features an ACID-compliant FastAPI backend and a highly optimized, data-driven React frontend.
+Nexus Finance Engine is a full-stack financial ledger and analytics application suitable for regulated-style workflows. The system pairs a FastAPI service with a React single-page client, PostgreSQL persistence, and Redis-backed response caching for aggregated reporting endpoints.
 
-## System Architecture & Technology Stack
+## Architecture
 
-**Backend Services:**
-* Framework: Python, FastAPI
-* Database: PostgreSQL (Relational Data), SQLAlchemy ORM
-* Caching Layer: Redis 
-* Infrastructure: Docker & Docker Compose
-* Security: JWT (JSON Web Tokens), OAuth2 Password Flow, Argon2 Password Hashing
+The solution follows a modular monolith pattern: a single versioned HTTP API (`/api/v1`) exposes authentication, accounts, transactions, and audit domains. The client consumes this API through a reverse proxy during development (Vite) or through an explicit origin allow list in production (CORS).
 
-**Client Application:**
-* Framework: React 18, Vite
-* Styling: Tailwind CSS (Strict UI/UX Standards)
-* Routing & State Management: React Router DOM, React Context API
-* Data Visualization: Recharts
-* Network Client: Axios (Interceptor-driven Authentication)
+| Layer | Responsibility |
+| --- | --- |
+| API | Request validation, JWT authentication, department and role guards, transactional business logic |
+| Data | PostgreSQL via SQLAlchemy/SQLModel; ACID semantics for multi-step operations |
+| Cache | Redis (with in-memory fallback) for cached financial summary responses |
+| Client | React 18, Vite, Tailwind CSS, Recharts; role-aware routing and navigation |
 
----
+## ACID Compliance and Ledger Operations
 
-## Core System Features
+Fund transfers persist as paired ledger entries (expense on the source account, income on the destination) within a single database transaction. Failure at any step triggers `session.rollback()`, preserving consistency across account balances and transaction rows.
 
-This platform was architected with a focus on data integrity, security, and high-performance querying.
+Transaction removal is implemented as soft delete: `is_deleted` is set to `true` with audit logging. Where a transfer is identified, matching paired rows are soft-deleted in the same unit of work.
 
-### 1. ACID-Compliant Financial Ledger
-Engineered a double-entry bookkeeping system to handle fund transfers. The system utilizes strict database transaction blocks to ensure atomicity; if a transfer fails at any computational stage, the entire operation rolls back to prevent orphaned funds or data corruption.
+## Redis Caching
 
-### 2. Advanced Role-Based Access Control (RBAC)
-Implemented a hierarchical authorization system across both the API and client levels.
-* Tiers: Admin, Dev_Admin, Analyst, and Viewer.
-* Dynamic UI Routing: The frontend client restricts access to specific components, views, and actions based on the JWT payload.
+Financial summary aggregation endpoints may be cached with Redis to reduce database load. If Redis is unavailable at startup, the application falls back to an in-memory cache backend suitable for development only.
 
-### 3. High-Performance Analytics Caching
-Integrated a Redis caching layer to handle computationally expensive data aggregation endpoints. Financial summaries and KPI metrics are pre-calculated and served from memory, drastically reducing database load and delivering dashboard data in milliseconds.
+## Role-Based Access Control (RBAC)
 
-### 4. Immutable Audit Trails
-Developed an automated, database-level hook system to maintain an immutable audit log. Every destructive or modifying action (INSERT, UPDATE, DELETE) automatically logs the timestamp, executing user ID, and affected table records. Access to this ledger is strictly restricted to Admin roles.
+Authorization is enforced at the API using department and role predicates. The client mirrors these rules:
 
-### 5. Secure Client Gateway
-Built a robust frontend network layer using Axios interceptors. The client automatically manages JWT Bearer token attachment and handles token expiration by intercepting 401 Unauthorized responses, clearing session state, and executing secure redirects.
+| Role | Ledger read | Transfers | Deletes | Audit logs |
+| --- | --- | --- | --- | --- |
+| Admin | Yes | Yes | Yes | Yes |
+| Dev_Admin | Yes | No | No | Yes |
+| Analyst | Yes | No | No | No |
+| Viewer | Yes | No | No | No |
 
-### 6. Complex Data Visualization Pipelines
-Designed client-side data transformation pipelines that convert raw, paginated transaction arrays into formatted time-series data, enabling real-time rendering of complex charts (Revenue over Time, Expense Categorization) without over-fetching from the backend.
+Audit log access is restricted to `Admin` and `Dev_Admin` on the API and in the navigation shell.
 
----
+## Security Configuration
 
-## Local Development Environment
+- JWT signing keys and database credentials are supplied through environment variables (Pydantic `BaseSettings`).
+- Production deployments must set `SECRET_KEY` and `DATABASE_URL`; do not commit credentials.
+- CORS is restricted to explicit origins via `CORS_ORIGINS` (comma-separated). Wildcard origins are not used with credential-bearing requests.
 
-The development environment is heavily containerized to ensure parity across local and production deployments.
+## Prerequisites
 
-### Prerequisites
-* Docker Desktop
-* Node.js (v18 or higher)
-* Git
+- Docker Engine and Docker Compose (for containerized PostgreSQL and Redis)
+- Node.js 18 or newer (for the web client)
+- Python 3.11+ (for local backend execution outside the API container)
 
-### Starting the Backend Services
-The backend relies entirely on Docker Compose to orchestrate the PostgreSQL database, Redis instance, and FastAPI server.
+## Local Development
 
-Navigate to the project root and execute:
+### Backend (Docker Compose)
+
+From the repository root:
+
 ```bash
 docker compose up -d
+```
+
+Set `SECRET_KEY` to a long random value in `.env` before issuing tokens; an empty `SECRET_KEY` rejects login. The API service reads `DATABASE_URL`, `REDIS_URL`, `SECRET_KEY`, and `CORS_ORIGINS` from the environment.
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The development server proxies `/api` to `http://127.0.0.1:8000`. Ensure the API listens on `8000` or adjust the proxy target.
+
+### Database Migrations
+
+Alembic reads `sqlalchemy.url` from `app.core.config.settings.database_url` (see `alembic/env.py`). Run migrations from the `backend` directory with `DATABASE_URL` set appropriately.
+
+## Testing
+
+```bash
+cd backend
+pytest
+```
+
+## License
+
+See repository for license terms applicable to the open-source distribution.

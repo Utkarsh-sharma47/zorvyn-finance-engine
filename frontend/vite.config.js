@@ -6,7 +6,6 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      // Forward API calls to FastAPI; browser stays on :5173 so same-origin + no CORS in dev.
       '/api': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,

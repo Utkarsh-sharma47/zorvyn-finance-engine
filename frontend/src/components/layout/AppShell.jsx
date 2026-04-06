@@ -19,11 +19,11 @@ export default function AppShell() {
       <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r border-gray-800 bg-gray-950 px-4 py-6">
         <div className="mb-10 flex items-center gap-3 px-2">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-700 bg-gray-900">
-            <span className="text-xs font-bold tracking-tight text-gray-100">Z</span>
+            <span className="text-xs font-bold tracking-tight text-gray-100">N</span>
           </div>
           <div>
-            <p className="text-sm font-semibold tracking-tight text-gray-50">Zorvyn</p>
-            <p className="text-[10px] uppercase tracking-widest text-gray-500">Finance</p>
+            <p className="text-sm font-semibold tracking-tight text-gray-50">NexusFin</p>
+            <p className="text-[10px] uppercase tracking-widest text-gray-500">Finance Engine</p>
           </div>
         </div>
 

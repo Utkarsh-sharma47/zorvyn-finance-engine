@@ -83,12 +83,14 @@ export default function Insights() {
     color: '#e5e5e5',
   };
 
+  const barEmpty = !loading && parsed.total_income === 0 && parsed.total_expense === 0;
+
   return (
     <div className="mx-auto max-w-6xl space-y-8">
       <header>
         <h1 className="text-2xl font-semibold tracking-tight text-gray-50 md:text-3xl">Insights</h1>
         <p className="mt-1 text-sm text-gray-400">
-          Analyst view — income vs expenses and high-value ledger activity (over {formatMoney(HIGH_VALUE_MIN)})
+          Income and expense comparison with high-value ledger activity (threshold {formatMoney(HIGH_VALUE_MIN)})
         </p>
       </header>
 
@@ -97,6 +99,11 @@ export default function Insights() {
         {loading ? (
           <div className="flex h-64 items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+          </div>
+        ) : barEmpty ? (
+          <div className="flex h-80 flex-col items-center justify-center rounded-lg border border-dashed border-gray-800 bg-[#0a0a0a] px-4 text-center">
+            <p className="text-sm text-gray-400">No data available</p>
+            <p className="mt-1 text-xs text-gray-500">Summary totals are zero for the current reporting scope.</p>
           </div>
         ) : (
           <div className="h-80 w-full">

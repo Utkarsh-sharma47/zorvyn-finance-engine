@@ -2,9 +2,9 @@ services:
   db:
     image: postgres:15-alpine
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-zorvyn}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-zorvyn}
-      POSTGRES_DB: ${POSTGRES_DB:-zorvyn}
+      POSTGRES_USER: ${POSTGRES_USER:-nexus}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nexus_dev_only}
+      POSTGRES_DB: ${POSTGRES_DB:-nexus_finance}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
@@ -37,8 +37,10 @@ services:
     ports:
       - "${API_PORT:-8000}:8000"
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://zorvyn:zorvyn@db:5432/zorvyn}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://nexus:nexus_dev_only@db:5432/nexus_finance}
       REDIS_URL: ${REDIS_URL:-redis://cache:6379/0}
+      SECRET_KEY: ${SECRET_KEY:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
     depends_on:
       db:
         condition: service_healthy
