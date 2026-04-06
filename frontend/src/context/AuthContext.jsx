@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { API_BASE_URL } from '../config/apiBase';
 import api from '../services/api';
 import { parseAxiosError } from '../utils/httpError';
 
@@ -72,8 +73,8 @@ export function AuthProvider({ children }) {
         form.set('username', email.trim());
         form.set('password', password);
 
-        // Same-origin path so Vite dev proxy and production reverse proxies forward /api to the backend.
-        const res = await fetch('/api/v1/auth/login', {
+        const loginUrl = new URL('auth/login', `${API_BASE_URL}/`);
+        const res = await fetch(loginUrl.toString(), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
@@ -111,7 +112,7 @@ export function AuthProvider({ children }) {
         const verified = await checkAuth();
         if (!verified) {
           const msg =
-            'Session established but user profile could not be loaded. Verify GET /api/v1/auth/me and API connectivity.';
+            'Session established but user profile could not be loaded. Verify GET /auth/me against the configured API base URL.';
           setError((prev) => prev || msg);
           throw new Error(msg);
         }

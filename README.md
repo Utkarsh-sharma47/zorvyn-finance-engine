@@ -4,7 +4,7 @@ Nexus Finance Engine is a full-stack financial ledger and analytics application 
 
 ## Architecture
 
-The solution follows a modular monolith pattern: a single versioned HTTP API (`/api/v1`) exposes authentication, accounts, transactions, and audit domains. The client consumes this API through a reverse proxy during development (Vite) or through an explicit origin allow list in production (CORS).
+The solution follows a modular monolith pattern: a single versioned HTTP API (`/api/v1`) exposes authentication, accounts, transactions, and audit domains. The web client calls the API using an absolute base URL configured via `VITE_API_BASE_URL` (see `frontend/.env.example`). The API must allow the frontend origin in `CORS_ORIGINS`.
 
 | Layer | Responsibility |
 | --- | --- |
@@ -62,13 +62,13 @@ Set `SECRET_KEY` to a long random value in `.env` before issuing tokens; an empt
 
 ### Frontend
 
+Copy `frontend/.env.example` to `frontend/.env.local` and set `VITE_API_BASE_URL` to the FastAPI base (for example the service URL ending in `/api/v1`). The value is injected at build time and used for all Axios and OAuth2 login requests.
+
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-
-The development server proxies `/api` to `http://127.0.0.1:8000`. Ensure the API listens on `8000` or adjust the proxy target.
 
 ### Database Migrations
 

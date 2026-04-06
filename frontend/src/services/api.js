@@ -1,10 +1,12 @@
 import axios from 'axios';
 
+import { API_BASE_URL } from '../config/apiBase';
+
 /**
- * Relative URL: Vite dev server proxies `/api` → FastAPI (:8000).
+ * Axios instance: paths are relative to API_BASE_URL (e.g. /auth/me under /api/v1).
  */
 export const api = axios.create({
-  baseURL: '/api/v1',
+  baseURL: API_BASE_URL,
   headers: {
     Accept: 'application/json',
   },

@@ -13,7 +13,7 @@ export function parseAxiosError(err) {
       return 'Request timed out. Try again.';
     }
     if (err.message === 'Network Error' || err.message?.includes('Network')) {
-      return 'Cannot reach the server. Start the API (port 8000) and ensure the Vite proxy is enabled.';
+      return 'Cannot reach the API. Confirm VITE_API_BASE_URL and that the backend is running.';
     }
     return err.message || 'Network error';
   }
@@ -41,7 +41,7 @@ export function parseAxiosError(err) {
   }
 
   if (status === 404) {
-    return 'API route not found — check that the URL is /api/v1/auth/login and the backend is running.';
+    return 'API route not found. Check VITE_API_BASE_URL and backend routes.';
   }
 
   return `Request failed (${status})`;
