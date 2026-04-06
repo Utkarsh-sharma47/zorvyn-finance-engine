@@ -6,18 +6,6 @@ const AuthContext = createContext(null);
 
 const AUDIT_ROLES = new Set(['Admin', 'Dev_Admin']);
 
-/**
- * OAuth2 password flow: body MUST be application/x-www-form-urlencoded
- * with fields `username` (email) and `password`. Send a string body so Axios
- * does not JSON-serialize or alter the payload.
- */
-function buildLoginFormBody(email, password) {
-  const params = new URLSearchParams();
-  params.append('username', email.trim());
-  params.append('password', password);
-  return params.toString();
-}
-
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => localStorage.getItem('token'));
   const [user, setUser] = useState(null);
@@ -75,22 +63,31 @@ export function AuthProvider({ children }) {
     async (email, password) => {
       setError(null);
       try {
-        const body = buildLoginFormBody(email, password);
-        const { data } = await api.post('/auth/login', body, {
+        // OAuth2PasswordRequestForm: form fields must be `username` (email) and `password`.
+        const formData = new URLSearchParams();
+        formData.append('username', email.trim());
+        formData.append('password', password);
+        const body = formData.toString();
+
+        const response = await api.post('/auth/login', body, {
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
           },
         });
-        const accessToken = data?.access_token;
-        if (!accessToken) throw new Error('No access token in response');
-        
+
+        // FastAPI returns the OAuth2 token payload directly (no success/data envelope).
+        const accessToken = response.data?.access_token;
+        if (typeof accessToken !== 'string' || accessToken.length === 0) {
+          throw new Error('No access token in response');
+        }
+
         localStorage.setItem('token', accessToken);
         setToken(accessToken);
-        
+
         const verified = await checkAuth();
         if (!verified) {
           const msg =
-            'Signed in but could not load your profile (GET /auth/me). Confirm the backend route exists and the Vite proxy forwards /api to port 8000.';
+            'Session established but user profile could not be loaded. Verify GET /api/v1/auth/me and API connectivity.';
           setError((prev) => prev || msg);
           throw new Error(msg);
         }
